@@ -4,6 +4,7 @@ import javax.jms.Connection;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.RedeliveryPolicy;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -27,26 +28,29 @@ public class App {
     CommandLine cmd = parser.parse(options, args);
 
     String destinationName = cmd.getOptionValue("d", "queue:TEST");
-    Integer messageCount = Integer.parseInt(cmd.getOptionValue("n", "10"));
+    Integer messageCount = Integer.parseInt(cmd.getOptionValue("n", "1000"));
     Boolean durable = cmd.hasOption("u");
     Boolean sender = cmd.hasOption("s");
     String messageFilePath = cmd.getOptionValue("f");
-    String brokerUrl = cmd.getOptionValue("brokerUrl", "localhost:62616");
+    String brokerUrl = cmd.getOptionValue("brokerUrl", "tcp://localhost:61616");
     String user = cmd.getOptionValue("user", "admin");
     String password = cmd.getOptionValue("password", "admin");
-    
+    String clientId = RandomStringUtils.randomAlphabetic(5);
+
+    //System.out.println("Client ID: " + clientId);
+
     RedeliveryPolicy redeliveryPolicy = new RedeliveryPolicy();
     redeliveryPolicy.setMaximumRedeliveries(1);
     redeliveryPolicy.setInitialRedeliveryDelay(1);
     redeliveryPolicy.setRedeliveryDelay(1);
 
     ActiveMQConnectionFactory connectionFactory = new ActiveMQConnectionFactory();
-    connectionFactory.setBrokerURL("tcp://" + brokerUrl);
+    connectionFactory.setBrokerURL(brokerUrl);
     connectionFactory.setUserName(user);
     connectionFactory.setPassword(password);
     connectionFactory.setRedeliveryPolicy(redeliveryPolicy);
     Connection connection = connectionFactory.createConnection();
-    connection.setClientID("client1");
+    connection.setClientID(clientId);
 
     if (sender) {
       Sender.send(destinationName, messageFilePath, connection);

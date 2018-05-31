@@ -9,18 +9,21 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 import javax.jms.Topic;
 
+import org.apache.commons.lang3.RandomStringUtils;
+
 public class Receiver {
   protected static void receive(String destinationName, Integer maxMessageCount, Boolean durable, Connection connection) throws JMSException, InterruptedException {
 
     Queue queue = null;
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    String subscriberId = RandomStringUtils.randomAlphabetic(5);
 
     String[] destinationNameParts = destinationName.split(":");
     MessageConsumer consumer;
     if (destinationNameParts[0].equalsIgnoreCase("topic")) {
       Topic topic = session.createTopic(destinationNameParts[1]);
       if (durable) {
-        consumer = session.createDurableSubscriber(topic, "subscriber1");
+        consumer = session.createDurableSubscriber(topic, subscriberId);
       } else {
         consumer = session.createConsumer(topic);
       }
