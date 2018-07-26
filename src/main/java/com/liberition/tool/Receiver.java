@@ -12,46 +12,46 @@ import javax.jms.Topic;
 import org.apache.commons.lang3.RandomStringUtils;
 
 public class Receiver {
-  protected static void receive(String destinationName, Integer maxMessageCount, Boolean durable, Connection connection) throws JMSException, InterruptedException {
+    protected static void receive(String destinationName, Integer maxMessageCount, Boolean durable, Connection connection) throws JMSException, InterruptedException {
 
-    Queue queue = null;
-    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    String subscriberId = RandomStringUtils.randomAlphabetic(5);
+        Queue queue = null;
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        String subscriberId = RandomStringUtils.randomAlphabetic(5);
 
-    String[] destinationNameParts = destinationName.split(":");
-    MessageConsumer consumer;
-    if (destinationNameParts[0].equalsIgnoreCase("topic")) {
-      Topic topic = session.createTopic(destinationNameParts[1]);
-      if (durable) {
-        consumer = session.createDurableSubscriber(topic, subscriberId);
-      } else {
-        consumer = session.createConsumer(topic);
-      }
-    } else {
-      queue = session.createQueue(destinationNameParts[1]);
-      consumer = session.createConsumer(queue);
+        String[] destinationNameParts = destinationName.split(":");
+        MessageConsumer consumer;
+        if (destinationNameParts[0].equalsIgnoreCase("topic")) {
+            Topic topic = session.createTopic(destinationNameParts[1]);
+            if (durable) {
+                consumer = session.createDurableSubscriber(topic, subscriberId);
+            } else {
+                consumer = session.createConsumer(topic);
+            }
+        } else {
+            queue = session.createQueue(destinationNameParts[1]);
+            consumer = session.createConsumer(queue);
+        }
+
+        //consumer.setMessageListener(new Listener("consumer1"));
+        connection.start();
+
+        Integer messageCount = 0;
+        while (messageCount < maxMessageCount) {
+            Message message = consumer.receive();
+            if (message instanceof TextMessage) {
+                TextMessage textMessage = (TextMessage) message;
+                String text = textMessage.getText();
+                System.out.println("Received: " + text + " on " + message.getJMSDestination());
+            } else {
+                System.out.println("Received: " + message + " on " + message.getJMSDestination());
+            }
+            messageCount++;
+        }
+        consumer.close();
+        session.close();
+        connection.close();
+
     }
-
-    //consumer.setMessageListener(new Listener("consumer1"));
-    connection.start();
-    
-    Integer messageCount = 0;
-    while (messageCount < maxMessageCount) {
-      Message message = consumer.receive();
-      if (message instanceof TextMessage) {
-        TextMessage textMessage = (TextMessage) message;
-        String text = textMessage.getText();
-        System.out.println("Received: " + text + " on " + message.getJMSDestination());
-      } else {
-        System.out.println("Received: " + message + " on " + message.getJMSDestination());
-      }
-      messageCount++;
-    }
-    consumer.close();
-    session.close();
-    connection.close();
-
-  }
 }
 
 /*class Listener implements MessageListener {

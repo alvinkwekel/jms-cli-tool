@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 import java.util.stream.IntStream;
 
 import javax.jms.Connection;
@@ -17,51 +18,53 @@ import javax.jms.Topic;
 
 public class Sender {
 
-  protected static void send(String destinationName, String messageFilePath, Connection connection) throws Exception {
+    protected static void send(String destinationName, String messageFilePath, String headerString, Connection connection) throws Exception {
 
-    connection.start();
-    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        connection.start();
+        Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 
-    String[] destinationNameParts = destinationName.split(":");
-    MessageProducer producer;
-    if (destinationNameParts[0].equalsIgnoreCase("topic")) {
-      Topic topic = session.createTopic(destinationNameParts[1]);
-      producer = session.createProducer(topic);
-    } else {
-      Queue queue = session.createQueue(destinationNameParts[1]);
-      producer = session.createProducer(queue);
+        String[] destinationNameParts = destinationName.split(":");
+        MessageProducer producer;
+        if (destinationNameParts.length < 2) {
+            Queue queue = session.createQueue(destinationNameParts[0]);
+            producer = session.createProducer(queue);
+        } else if (destinationNameParts[0].equalsIgnoreCase("topic")) {
+            Topic topic = session.createTopic(destinationNameParts[1]);
+            producer = session.createProducer(topic);
+        } else {
+            Queue queue = session.createQueue(destinationNameParts[1]);
+            producer = session.createProducer(queue);
+        }
+
+        List<String> lines = Files.readAllLines(Paths.get(messageFilePath));
+        String content = String.join("\n", lines);
+
+        Message message = session.createTextMessage(content);
+
+        Map<String, String> headers = new HashMap<String, String>();
+        for (String nameValuePairString : headerString.split(",")) {
+            String[] nameValuePair = nameValuePairString.split("=");
+            headers.put(nameValuePair[0], nameValuePair[1]);
+        }
+
+        headers.forEach((k, v) -> {
+            try {
+                message.setStringProperty(k, v);
+            } catch (JMSException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        IntStream.range(0, 1).forEach($ -> {
+            try {
+                producer.send(message);
+            } catch (JMSException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        producer.close();
+        session.close();
+        connection.close();
     }
-
-    List<String> lines = Files.readAllLines(Paths.get(messageFilePath));
-    String content = String.join("\n", lines);
-
-    Message message = session.createTextMessage(content);
-
-    Map<String, String> headers = new HashMap<String, String>();
-    headers.put("X-LOG-COMPONENT", "some_component");
-    headers.put("X-LOG-USER", "alvin");
-    headers.put("X-LOG-ID", "123456");
-    headers.put("X-LOG-DESCRIPTION", "some_description");
-    headers.put("MessageVersion", "1");
-
-    headers.forEach((k,v) -> {
-      try {
-        message.setStringProperty(k, v);
-      } catch (JMSException e) {
-        throw new RuntimeException(e);
-      }
-    });
-
-    IntStream.range(0, 1).forEach($ -> {
-      try {
-        producer.send(message);
-      } catch (JMSException e) {
-        throw new RuntimeException(e);
-      }
-    });
-
-    producer.close();
-    session.close();
-    connection.close();
-  }
 }
