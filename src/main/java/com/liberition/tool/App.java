@@ -19,11 +19,18 @@ public class App {
         options.addOption("u", false, "durable");
         options.addOption("f", true, "message file path");
         options.addOption("h", true, "headers");
+
         options.addOption("s", false, "sender");
+        options.addOption("c", false, "copy");
+        options.addOption("r", false, "receiver");
+
         options.addOption("e", false, "receiver exception");
         options.addOption(null, "brokerUrl", true, "broker URL");
         options.addOption(null, "user", true, "user");
         options.addOption(null, "password", true, "password");
+        options.addOption(null, "sourceBrokerUrl", true, "broker URL");
+        options.addOption(null, "sourceUser", true, "user");
+        options.addOption(null, "sourcePassword", true, "password");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd = parser.parse(options, args);
@@ -31,15 +38,19 @@ public class App {
         String destinationName = cmd.getOptionValue("d", "queue:TEST");
         Integer messageCount = Integer.parseInt(cmd.getOptionValue("n", "1"));
         Boolean durable = cmd.hasOption("u");
+
+        Boolean receiver = cmd.hasOption("r");
         Boolean sender = cmd.hasOption("s");
+        Boolean copy = cmd.hasOption("c");
+
         String messageFilePath = cmd.getOptionValue("f");
         String headers = cmd.getOptionValue("h");
         String brokerUrl = cmd.getOptionValue("brokerUrl", "tcp://localhost:61616");
         String user = cmd.getOptionValue("user", "admin");
         String password = cmd.getOptionValue("password", "admin");
-        String clientId = RandomStringUtils.randomAlphabetic(5);
-
-        //System.out.println("Client ID: " + clientId);
+        String sourceBrokerUrl = cmd.getOptionValue("sourceBrokerUrl", "tcp://localhost2:61616");
+        String sourceUser = cmd.getOptionValue("sourceUser", user);
+        String sourcePassword = cmd.getOptionValue("sourcePassword", password);
 
         RedeliveryPolicy redeliveryPolicy = new RedeliveryPolicy();
         redeliveryPolicy.setMaximumRedeliveries(1);
@@ -52,10 +63,19 @@ public class App {
         connectionFactory.setPassword(password);
         connectionFactory.setRedeliveryPolicy(redeliveryPolicy);
         Connection connection = connectionFactory.createConnection();
-        connection.setClientID(clientId);
+        connection.setClientID(RandomStringUtils.randomAlphabetic(5));
 
         if (sender) {
             Sender.send(destinationName, messageFilePath, headers, connection);
+        } else if (copy) {
+            ActiveMQConnectionFactory sourceConnectionFactory = new ActiveMQConnectionFactory();
+            sourceConnectionFactory.setBrokerURL(sourceBrokerUrl);
+            sourceConnectionFactory.setUserName(sourceUser);
+            sourceConnectionFactory.setPassword(sourcePassword);
+            sourceConnectionFactory.setRedeliveryPolicy(redeliveryPolicy);
+            Connection sourceConnection = sourceConnectionFactory.createConnection();
+            sourceConnection.setClientID(RandomStringUtils.randomAlphabetic(5));
+            Copy.copy(destinationName, durable, sourceConnection, connection);
         } else
             Receiver.receive(destinationName, messageCount, durable, connection);
     }
