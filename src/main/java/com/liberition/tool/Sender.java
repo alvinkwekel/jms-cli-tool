@@ -18,7 +18,7 @@ import javax.jms.Topic;
 
 public class Sender {
 
-    protected static void send(String destinationName, String messageFilePath, String headerString, Connection connection) throws Exception {
+    protected static void send(String destinationName, String messageFilePath, String headerString, Connection connection, Integer messageCount) throws Exception {
 
         connection.start();
         Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
@@ -41,21 +41,23 @@ public class Sender {
 
         Message message = session.createTextMessage(content);
 
-        Map<String, String> headers = new HashMap<String, String>();
-        for (String nameValuePairString : headerString.split(",")) {
-            String[] nameValuePair = nameValuePairString.split("=");
-            headers.put(nameValuePair[0], nameValuePair[1]);
+        if (headerString != null) {
+            Map<String, String> headers = new HashMap();
+            for (String nameValuePairString : headerString.split(",")) {
+                String[] nameValuePair = nameValuePairString.split("=");
+                headers.put(nameValuePair[0], nameValuePair[1]);
+            }
+
+            headers.forEach((k, v) -> {
+                try {
+                    message.setStringProperty(k, v);
+                } catch (JMSException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
 
-        headers.forEach((k, v) -> {
-            try {
-                message.setStringProperty(k, v);
-            } catch (JMSException e) {
-                throw new RuntimeException(e);
-            }
-        });
-
-        IntStream.range(0, 1).forEach($ -> {
+        IntStream.range(0, messageCount).forEach($ -> {
             try {
                 producer.send(message);
             } catch (JMSException e) {

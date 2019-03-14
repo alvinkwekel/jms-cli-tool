@@ -66,7 +66,7 @@ public class App {
         connection.setClientID(RandomStringUtils.randomAlphabetic(5));
 
         if (sender) {
-            Sender.send(destinationName, messageFilePath, headers, connection);
+            Sender.send(destinationName, messageFilePath, headers, connection, messageCount);
         } else if (copy) {
             ActiveMQConnectionFactory sourceConnectionFactory = new ActiveMQConnectionFactory();
             sourceConnectionFactory.setBrokerURL(sourceBrokerUrl);
